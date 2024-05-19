@@ -22,6 +22,11 @@ lib.read('test', 'newfile', (err, data) => {
 lib.update('test', 'newfile', {name: 'John Carter', profession: 'employee'}, (err) => {
   console.log(err);
 })
+
+
+// lib.delete('test', 'newfile', (err) => {
+//     console.log(err);
+// })
 handler.handleReqRes = (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
