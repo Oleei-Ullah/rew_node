@@ -1,5 +1,7 @@
 import http from "http";
-import handler from "./utils/handleReqRes.js";
+import reqResHanlder from "./utils/handleReqRes.js";
+
+const {handleReqRes} = reqResHanlder;
 
 const app = {};
 
@@ -8,7 +10,7 @@ app.config = {
 };
 
 app.createServer = () => {
-  const server = http.createServer(handler.handleReqRes);
+  const server = http.createServer(handleReqRes);
   server.listen(app.config.port, () => {
     console.log(
       `Sever Created successfully. Running on port: ${app.config.port}`
