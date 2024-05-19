@@ -20,18 +20,12 @@ handler.handleReqRes = (req, res) => {
     path,
     trimmedPath,
     query,
-    headers
-  }
+    headers,
+  };
 
-  const chosenHandler = routes[trimmedPath] ? routes[trimmedPath] : notFoundHandler;
-
-  chosenHandler(requestProperties, (statusCode, payload) => {
-    statusCode = typeof(statusCode) === 'number' ? statusCode : 500;
-    payload = typeof(payload) === 'object' ? payload : {}
-
-    res.writeHead(statusCode);
-    res.end(JSON.stringify(payload));
-  })
+  const chosenHandler = routes[trimmedPath]
+    ? routes[trimmedPath]
+    : notFoundHandler;
 
   req.on("data", (buffer) => {
     parsedData += decoder.write(buffer);
@@ -39,7 +33,14 @@ handler.handleReqRes = (req, res) => {
 
   req.on("end", () => {
     parsedData += decoder.end();
-    res.end("Hello Programmers");
+
+    chosenHandler(requestProperties, (statusCode, payload) => {
+      statusCode = typeof statusCode === "number" ? statusCode : 500;
+      payload = typeof payload === "object" ? payload : {};
+
+      res.writeHead(statusCode);
+      res.end(JSON.stringify(payload));
+    });
   });
 };
 
