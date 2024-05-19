@@ -2,8 +2,21 @@ import { StringDecoder } from "string_decoder";
 import url from "url";
 import notFoundHandler from "../handlers/routeHandlers/notFoundHandler.js";
 import routes from "../route.js";
+import lib from "../lib/data.js";
 
 const handler = {};
+
+lib.create('test', 'newfile', {name: 'abdullah', age: 20}, (err) => {
+  console.log(err);
+})
+
+lib.read('test', 'newfile', (err, data) => {
+  if(err) {
+    console.log(err);
+  } else {
+    console.log(data);
+  }
+})
 
 handler.handleReqRes = (req, res) => {
   const parsedUrl = url.parse(req.url, true);
