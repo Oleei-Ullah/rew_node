@@ -32,13 +32,13 @@ userHandler._users.get = (requestProperties, callback) => {
         callback(200, user);
       } else {
         callback(404, {
-          Error: "Requested user cannot found",
+          Error: "Requested user cannot found in database!!",
         });
       }
     });
   } else {
     callback(404, {
-      Error: "Requested user cannot found",
+      Error: "Invalid search of user to find the data!",
     });
   }
 };
@@ -142,25 +142,28 @@ userHandler._users.put = (requestProperties, callback) => {
       lib.read("users", phone, (err, uData) => {
         if (!err && uData) {
           const user = JSON.parse(JSON.stringify(utilities.parseJSON(uData)));
-          if(firstName) {
-            user.firstName = firstName
+          if (firstName) {
+            user.firstName = firstName;
           }
 
-          if(lastName) {
-            user.lastName = lastName
+          if (lastName) {
+            user.lastName = lastName;
           }
 
-          if(password) {
-            user.password = utilities.hash(password)
+          if (password) {
+            user.password = utilities.hash(password);
           }
 
-          lib.update('users', phone, user, (err) => {
-            if(!err) {
-              callback(200, {success: true, message: 'User updated succesfully'});
+          lib.update("users", phone, user, (err) => {
+            if (!err) {
+              callback(200, {
+                success: true,
+                message: "User updated succesfully",
+              });
             } else {
-              callback(400, {Error: "Couldn't updated the user finish."})
+              callback(400, { Error: "Couldn't updated the user finish." });
             }
-          })
+          });
         } else {
           callback(400, {
             Error: "Invalid user. User isnot available in database!",
@@ -177,8 +180,36 @@ userHandler._users.put = (requestProperties, callback) => {
   }
 };
 
+
+//delete method in database with nodejs
 userHandler._users.delete = (requestProperties, callback) => {
-  callback(200, { name: "dullah" });
+  const phone =
+    typeof requestProperties?.query?.phone === "string" &&
+    requestProperties?.query?.phone.trim().length == 11
+      ? requestProperties?.query?.phone
+      : null;
+
+  if (phone) {
+    lib.read("users", phone, (err, userData) => {
+      if (!err && userData) {
+        lib.delete('users', phone, (err) => {
+          if(!err) {
+            callback(200, {success: "User deleted successfully"})
+          } else {
+            callback(400, {Error: "user couldn't delete final"})
+          }
+        })
+      } else {
+        callback(404, {
+          Error: "Requested user cannot found to delete!",
+        });
+      }
+    });
+  } else {
+    callback(404, {
+      Error: "Invalid search of user to delete from the database",
+    });
+  }
 };
 
 export default userHandler;
