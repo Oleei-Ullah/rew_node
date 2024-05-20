@@ -16,7 +16,30 @@ userHandler.handler = (requestProperties, callback) => {
 userHandler._users = {};
 
 userHandler._users.get = (requestProperties, callback) => {
-  callback(200, { name: "ullah" });
+  const phone =
+    typeof requestProperties?.query?.phone === "string" &&
+    requestProperties?.query?.phone.trim().length == 11
+      ? requestProperties?.query?.phone
+      : null;
+
+  if (phone) {
+    lib.read("users", phone, (err, stringUser) => {
+      //MAKING THE Object type data form string type data and clone this in user variable with (JSON.parse(JOSN.stringify(object))) mehtod....
+      const user = JSON.parse(JSON.stringify(utilities.parseJSON(stringUser)));
+      delete user.password;
+      if (!err && user) {
+        callback(200, user);
+      } else {
+        callback(404, {
+          Error: "Requested user cannot found",
+        });
+      }
+    });
+  } else {
+    callback(404, {
+      Error: "Requested user cannot found",
+    });
+  }
 };
 
 userHandler._users.post = (requestProperties, callback) => {
