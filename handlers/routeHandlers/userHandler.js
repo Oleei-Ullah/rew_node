@@ -1,5 +1,6 @@
 import utilities from "../../helpers/utilities.js";
 import lib from "../../lib/data.js";
+import tokenHandler from "./tokenHandler.js";
 
 const userHandler = {};
 
@@ -24,15 +25,30 @@ userHandler._users.get = (requestProperties, callback) => {
       : null;
 
   if (phone) {
-    lib.read("users", phone, (err, stringUser) => {
-      //MAKING THE Object type data form string type data and clone this in user variable with (JSON.parse(JOSN.stringify(object))) mehtod....
-      const user = JSON.parse(JSON.stringify(utilities.parseJSON(stringUser)));
-      delete user.password;
-      if (!err && user) {
-        callback(200, user);
+    let token =
+      typeof requestProperties.headerObject.token === "string"
+        ? requestProperties.headerObject.token
+        : null;
+
+    tokenHandler._tokens.verify(token, phone, (verified) => {
+      if (verified) {
+        lib.read("users", phone, (err, stringUser) => {
+          //MAKING THE Object type data form string type data and clone this in user variable with (JSON.parse(JOSN.stringify(object))) mehtod....
+          const user = JSON.parse(
+            JSON.stringify(utilities.parseJSON(stringUser))
+          );
+          delete user.password;
+          if (!err && user) {
+            callback(200, user);
+          } else {
+            callback(404, {
+              Error: "Requested user cannot found in database!!",
+            });
+          }
+        });
       } else {
-        callback(404, {
-          Error: "Requested user cannot found in database!!",
+        callback(400, {
+          Error: "Authentication failed!!!",
         });
       }
     });
@@ -139,34 +155,49 @@ userHandler._users.put = (requestProperties, callback) => {
 
   if (phone) {
     if (firstName || lastName || password) {
-      lib.read("users", phone, (err, uData) => {
-        if (!err && uData) {
-          const user = JSON.parse(JSON.stringify(utilities.parseJSON(uData)));
-          if (firstName) {
-            user.firstName = firstName;
-          }
+      let token =
+        typeof requestProperties.headerObject.token === "string"
+          ? requestProperties.headerObject.token
+          : null;
 
-          if (lastName) {
-            user.lastName = lastName;
-          }
+      tokenHandler._tokens.verify(token, phone, (verified) => {
+        if (verified) {
+          lib.read("users", phone, (err, uData) => {
+            if (!err && uData) {
+              const user = JSON.parse(
+                JSON.stringify(utilities.parseJSON(uData))
+              );
+              if (firstName) {
+                user.firstName = firstName;
+              }
 
-          if (password) {
-            user.password = utilities.hash(password);
-          }
+              if (lastName) {
+                user.lastName = lastName;
+              }
 
-          lib.update("users", phone, user, (err) => {
-            if (!err) {
-              callback(200, {
-                success: true,
-                message: "User updated succesfully",
+              if (password) {
+                user.password = utilities.hash(password);
+              }
+
+              lib.update("users", phone, user, (err) => {
+                if (!err) {
+                  callback(200, {
+                    success: true,
+                    message: "User updated succesfully",
+                  });
+                } else {
+                  callback(400, { Error: "Couldn't updated the user finish." });
+                }
               });
             } else {
-              callback(400, { Error: "Couldn't updated the user finish." });
+              callback(400, {
+                Error: "Invalid user. User isnot available in database!",
+              });
             }
           });
         } else {
           callback(400, {
-            Error: "Invalid user. User isnot available in database!",
+            Error: "Authentication failed!!!",
           });
         }
       });
@@ -180,7 +211,6 @@ userHandler._users.put = (requestProperties, callback) => {
   }
 };
 
-
 //delete method in database with nodejs
 userHandler._users.delete = (requestProperties, callback) => {
   const phone =
@@ -190,18 +220,31 @@ userHandler._users.delete = (requestProperties, callback) => {
       : null;
 
   if (phone) {
-    lib.read("users", phone, (err, userData) => {
-      if (!err && userData) {
-        lib.delete('users', phone, (err) => {
-          if(!err) {
-            callback(200, {success: "User deleted successfully"})
+    let token =
+      typeof requestProperties.headerObject.token === "string"
+        ? requestProperties.headerObject.token
+        : null;
+
+    tokenHandler._tokens.verify(token, phone, (verified) => {
+      if (verified) {
+        lib.read("users", phone, (err, userData) => {
+          if (!err && userData) {
+            lib.delete("users", phone, (err) => {
+              if (!err) {
+                callback(200, { success: "User deleted successfully" });
+              } else {
+                callback(400, { Error: "user couldn't delete final" });
+              }
+            });
           } else {
-            callback(400, {Error: "user couldn't delete final"})
+            callback(404, {
+              Error: "Requested user cannot found to delete!",
+            });
           }
-        })
+        });
       } else {
-        callback(404, {
-          Error: "Requested user cannot found to delete!",
+        callback(400, {
+          Error: "Authentication failed!!!",
         });
       }
     });

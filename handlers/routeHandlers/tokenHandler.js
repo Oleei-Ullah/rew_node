@@ -145,33 +145,48 @@ tokenHandler._tokens.put = (requestProperties, callback) => {
 //deleteing the tokendata
 
 tokenHandler._tokens.delete = (requestProperties, callback) => {
-    const id =
-      typeof requestProperties?.query?.id === "string" &&
-      requestProperties?.query?.id.trim().length == 20
-        ? requestProperties?.query?.id
-        : null;
+  const id =
+    typeof requestProperties?.query?.id === "string" &&
+    requestProperties?.query?.id.trim().length == 20
+      ? requestProperties?.query?.id
+      : null;
 
-    if (id) {
-      lib.read("tokens", id, (err, tokenData) => {
-        if (!err && tokenData) {
-          lib.delete('tokens', id, (err) => {
-            if(!err) {
-              callback(200, {success: "Token data deleted successfully"})
-            } else {
-              callback(400, {Error: "Token data couldn't delete final"})
-            }
-          })
-        } else {
-          callback(404, {
-            Error: "Requested user cannot found to delete!",
-          });
-        }
-      });
+  if (id) {
+    lib.read("tokens", id, (err, tokenData) => {
+      if (!err && tokenData) {
+        lib.delete("tokens", id, (err) => {
+          if (!err) {
+            callback(200, { success: "Token data deleted successfully" });
+          } else {
+            callback(400, { Error: "Token data couldn't delete final" });
+          }
+        });
+      } else {
+        callback(404, {
+          Error: "Requested user cannot found to delete!",
+        });
+      }
+    });
+  } else {
+    callback(404, {
+      Error: "Invalid search of user to delete from the database",
+    });
+  }
+};
+
+tokenHandler._tokens.verify = (id, phone, callback) => {
+  lib.read("tokens", id, (err, data) => {
+    if ((!err, data)) {
+      const tokenData = JSON.parse(JSON.stringify(utilities.parseJSON(data)));
+      if (tokenData.phone === phone && tokenData.expires > Date.now()) {
+        callback(true);
+      } else {
+        callback(false);
+      }
     } else {
-      callback(404, {
-        Error: "Invalid search of user to delete from the database",
-      });
+      callback(false);
     }
-  };
+  });
+};
 
 export default tokenHandler;
