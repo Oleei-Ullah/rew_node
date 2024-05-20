@@ -1,9 +1,9 @@
-import sampleHandler from "./handlers/routeHandlers/sampleHanlder.js"
+import tokenHandler from "./handlers/routeHandlers/tokenHandler.js";
 import userHandler from "./handlers/routeHandlers/userHandler.js";
 
 const routes = {
-    sample: sampleHandler,
-    users: userHandler.handler
+    users: userHandler.handler,
+    tokens: tokenHandler.handler
 }
 
 export default routes;
