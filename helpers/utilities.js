@@ -31,10 +31,9 @@ utilities.hash = (passString) => {
 };
 
 //random token generator...
-
 utilities.randomTokenGenerator = (expectedTokenLength) => {
   let token = "";
-  const charSetToMakeToken = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  const charSetToMakeToken = "abcdefghijklmnopqrstuvwxyz0123456789";
   if (typeof expectedTokenLength === "number") {
     for (let i = 1; i <= expectedTokenLength; i++) {
       token += charSetToMakeToken.charAt(
