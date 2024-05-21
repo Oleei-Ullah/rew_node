@@ -17,49 +17,6 @@ checkHandler.handler = (requestProperties, callback) => {
 //Another scaffolding for the methods under the checkHandler in _users
 checkHandler._checks = {};
 
-//get the user from local database.
-checkHandler._checks.get = (requestProperties, callback) => {
-  const phone =
-    typeof requestProperties?.query?.phone === "string" &&
-    requestProperties?.query?.phone.trim().length == 11
-      ? requestProperties?.query?.phone
-      : null;
-
-  if (phone) {
-    let token =
-      typeof requestProperties.headerObject.token === "string"
-        ? requestProperties.headerObject.token
-        : null;
-
-    tokenHandler._tokens.verify(token, phone, (verified) => {
-      if (verified) {
-        lib.read("users", phone, (err, stringUser) => {
-          //MAKING THE Object type data form string type data and clone this in user variable with (JSON.parse(JOSN.stringify(object))) mehtod....
-          const user = JSON.parse(
-            JSON.stringify(utilities.parseJSON(stringUser))
-          );
-          delete user.password;
-          if (!err && user) {
-            callback(200, user);
-          } else {
-            callback(404, {
-              Error: "Requested user cannot found in database!!",
-            });
-          }
-        });
-      } else {
-        callback(400, {
-          Error: "Authentication failed!!!",
-        });
-      }
-    });
-  } else {
-    callback(404, {
-      Error: "Invalid search of user to find the data!",
-    });
-  }
-};
-
 //post user in local database
 checkHandler._checks.post = (requestProperties, callback) => {
   const protocol =
@@ -100,8 +57,8 @@ checkHandler._checks.post = (requestProperties, callback) => {
       if (!err && tokenData) {
         const userPhone = utilities.parseJSON(tokenData).phone;
 
-        lib.read("users", userPhone, (err3, userData) => {
-          if (!err3 & userData) {
+        lib.read("users", userPhone, (err, userData) => {
+          if (!err && userData) {
             const userObject = JSON.parse(
               JSON.stringify(utilities.parseJSON(userData))
             );
@@ -114,7 +71,7 @@ checkHandler._checks.post = (requestProperties, callback) => {
                     ? userObject.checks
                     : [];
 
-                if (userChecks.length <= usedEnvironment.maxChecks) {
+                if (userChecks.length < usedEnvironment.maxChecks) {
                   const checkId = utilities.randomTokenGenerator(20);
                   const checkObject = {
                     id: checkId,
@@ -123,32 +80,33 @@ checkHandler._checks.post = (requestProperties, callback) => {
                     url,
                     successCode,
                     method,
-                    timeoutSeconds
+                    timeoutSeconds,
                   };
 
-                  lib.create('checks', checkId, (err) => {
-                    if(!err) {
-                        userObject.checks = userChecks;
-                        userObject.checks.push = checkId;
+                  lib.create("checks", checkId, checkObject, (err) => {
+                    if (!err) {
+                      userObject.checks = userChecks;
+                      userObject.checks.push(checkId);
 
-                        lib.update('users', userPhone, (err) => {
-                            if(!err) {
-                                callback(200, {
-                                    success: true,
-                                    message: "Successful checks and it's instance in user database."
-                                })
-                            } else {
-                                callback(500, {
-                                    Error: "Error in updating the user data.!"
-                                })
-                            }
-                        })
+                      lib.update("users", userPhone, userObject, (err) => {
+                        if (!err) {
+                          callback(200, {
+                            success: true,
+                            message:
+                              "Successful checks and it's instance in user database.",
+                          });
+                        } else {
+                          callback(500, {
+                            Error: err,
+                          });
+                        }
+                      });
                     } else {
-                        callback(500, {
-                            Error: 'Error in creating in checks.'
-                        })
+                      callback(500, {
+                        Error: "Error in creating in checks.",
+                      });
                     }
-                  })
+                  });
                 } else {
                   callback(401, {
                     Error: "User has already reached max check limit.",
@@ -161,8 +119,8 @@ checkHandler._checks.post = (requestProperties, callback) => {
               }
             });
           } else {
-            callback(200, {
-              ErrorFromuserRead: err3
+            callback(403, {
+              ErrorFromread: err,
             });
           }
         });
@@ -175,6 +133,50 @@ checkHandler._checks.post = (requestProperties, callback) => {
   } else {
     callback(400, {
       error: "Checks input is invalid",
+    });
+  }
+};
+
+checkHandler._checks.get = (requestProperties, callback) => {
+  const id =
+    typeof requestProperties?.query?.id === "string" &&
+    requestProperties?.query?.id.trim().length == 20
+      ? requestProperties?.query?.id
+      : null;
+
+  if (id) {
+    lib.read("checks", id, (err, checksData) => {
+      if (!err && checksData) {
+        let token =
+          typeof requestProperties.headerObject.token === "string"
+            ? requestProperties.headerObject.token
+            : null;
+
+        const check = JSON.parse(
+          JSON.stringify(utilities.parseJSON(checksData))
+        );
+
+        const phone = check.userPhone;
+
+        tokenHandler._tokens.verify(token, phone, (validToken) => {
+          if (validToken) {
+            callback(200, {
+              success: true,
+              data: check,
+            });
+          } else {
+            callback(400, {
+              Error: "Authentication failed!!!",
+            });
+          }
+        });
+      } else {
+        callback(400, { Error: err });
+      }
+    });
+  } else {
+    callback(404, {
+      Error: "Invalid search of Checks to find the checkdata!",
     });
   }
 };
