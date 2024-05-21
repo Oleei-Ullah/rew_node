@@ -101,7 +101,6 @@ checkHandler._checks.post = (requestProperties, callback) => {
         const userPhone = utilities.parseJSON(tokenData).phone;
 
         lib.read("users", userPhone, (err3, userData) => {
-            console.log('helo', userPhone);
           if (!err3 & userData) {
             const userObject = JSON.parse(
               JSON.stringify(utilities.parseJSON(userData))
