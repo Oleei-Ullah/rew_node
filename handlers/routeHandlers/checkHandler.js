@@ -295,39 +295,42 @@ checkHandler._checks.put = (requestProperties, callback) => {
 
 //delete method in database with nodejs
 checkHandler._checks.delete = (requestProperties, callback) => {
-  const phone =
-    typeof requestProperties?.query?.phone === "string" &&
-    requestProperties?.query?.phone.trim().length == 11
-      ? requestProperties?.query?.phone
+  const id =
+    typeof requestProperties?.query?.id === "string" &&
+    requestProperties?.query?.id.trim().length == 20
+      ? requestProperties?.query?.id
       : null;
 
-  if (phone) {
-    let token =
-      typeof requestProperties.headerObject.token === "string"
-        ? requestProperties.headerObject.token
-        : null;
+  if (id) {
+    lib.read("checks", id, (err, checkData) => {
+      if (!err && checkData) {
+        const checkObject = JSON.parse(
+          JSON.stringify(utilities.parseJSON(checkData))
+        );
+        const phone = checkObject.userPhone;
 
-    tokenHandler._tokens.verify(token, phone, (verified) => {
-      if (verified) {
-        lib.read("users", phone, (err, userData) => {
-          if (!err && userData) {
-            lib.delete("users", phone, (err) => {
+        let token =
+          typeof requestProperties.headerObject.token === "string"
+            ? requestProperties.headerObject.token
+            : null;
+
+        tokenHandler._tokens.verify(token, phone, (verified) => {
+          if (verified) {
+            lib.delete("checks", id, (err) => {
               if (!err) {
-                callback(200, { success: "User deleted successfully" });
+                callback(200, { success: "Checks deleted successfully" });
               } else {
-                callback(400, { Error: "user couldn't delete final" });
+                callback(400, { Error: "checks couldn't delete final" });
               }
             });
           } else {
-            callback(404, {
-              Error: "Requested user cannot found to delete!",
+            callback(400, {
+              Error: "Authentication failed!!!",
             });
           }
         });
       } else {
-        callback(400, {
-          Error: "Authentication failed!!!",
-        });
+        callback(403, { Error: "Couldn't read the check data" });
       }
     });
   } else {
