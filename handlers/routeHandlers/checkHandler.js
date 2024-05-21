@@ -1,23 +1,24 @@
+import usedEnvironment from "../../helpers/environments.js";
 import utilities from "../../helpers/utilities.js";
 import lib from "../../lib/data.js";
 import tokenHandler from "./tokenHandler.js";
 
-const userHandler = {};
+const checkHandler = {};
 
-userHandler.handler = (requestProperties, callback) => {
+checkHandler.handler = (requestProperties, callback) => {
   const acceptedMethods = ["get", "post", "put", "delete"];
   if (acceptedMethods.indexOf(requestProperties.method) > -1) {
-    userHandler._users[requestProperties.method](requestProperties, callback);
+    checkHandler._checks[requestProperties.method](requestProperties, callback);
   } else {
     callback(405);
   }
 };
 
-//Another scaffolding for the methods under the userhandler in _users
-userHandler._users = {};
+//Another scaffolding for the methods under the checkHandler in _users
+checkHandler._checks = {};
 
 //get the user from local database.
-userHandler._users.get = (requestProperties, callback) => {
+checkHandler._checks.get = (requestProperties, callback) => {
   const phone =
     typeof requestProperties?.query?.phone === "string" &&
     requestProperties?.query?.phone.trim().length == 11
@@ -60,75 +61,127 @@ userHandler._users.get = (requestProperties, callback) => {
 };
 
 //post user in local database
-userHandler._users.post = (requestProperties, callback) => {
-  const firstName =
-    typeof requestProperties?.body?.firstName === "string" &&
-    requestProperties?.body?.firstName.trim().length > 0
-      ? requestProperties?.body?.firstName
+checkHandler._checks.post = (requestProperties, callback) => {
+  const protocol =
+    typeof requestProperties?.body?.protocol === "string" &&
+    ["http", "https"].indexOf(requestProperties.body.protocol) > -1
+      ? requestProperties?.body?.protocol
       : null;
 
-  const lastName =
-    typeof requestProperties?.body?.lastName === "string" &&
-    requestProperties?.body?.lastName.trim().length > 0
-      ? requestProperties?.body?.lastName
+  const method =
+    typeof requestProperties?.body?.method === "string" &&
+    ["GET", "POST", "PUT", "DELETE"].indexOf(requestProperties.body.method) > -1
+      ? requestProperties?.body?.method
       : null;
 
-  const phone =
-    typeof requestProperties?.body?.phone === "string" &&
-    requestProperties?.body?.phone.trim().length == 11
-      ? requestProperties?.body?.phone
+  const timeoutSeconds =
+    typeof requestProperties?.body?.timeoutSeconds === "number" &&
+    requestProperties?.body?.timeoutSeconds % 1 === 0 &&
+    requestProperties?.body?.timeoutSeconds >= 1 &&
+    requestProperties?.body?.timeoutSeconds <= 5
+      ? requestProperties?.body?.timeoutSeconds
       : null;
 
-  const password =
-    typeof requestProperties?.body?.password === "string" &&
-    requestProperties?.body?.password.trim().length > 0
-      ? requestProperties?.body?.password
+  const url =
+    typeof requestProperties?.body?.url === "string" &&
+    requestProperties?.body?.url.trim().length > 0
+      ? requestProperties?.body?.url
       : null;
 
-  const tosAgreement =
-    typeof requestProperties?.body.tosAgreement === "boolean"
-      ? requestProperties?.body?.tosAgreement
-      : null;
+  const successCode =
+    typeof requestProperties?.body.successCode === "object" &&
+    requestProperties?.body?.successCode instanceof Array
+      ? requestProperties?.body?.successCode
+      : false;
 
-  if (firstName && lastName && phone && password && tosAgreement) {
-    lib.read("users", phone, (err, user) => {
-      if (err) {
-        let userObject = {
-          firstName,
-          lastName,
-          phone,
-          password: utilities.hash(password),
-          tosAgreement,
-        };
+  const token = requestProperties.headerObject.token;
+  if (protocol && method && successCode && url && timeoutSeconds) {
+    lib.read("tokens", token, (err, tokenData) => {
+      if (!err && tokenData) {
+        const userPhone = utilities.parseJSON(tokenData).phone;
 
-        lib.create("users", phone, userObject, (err) => {
-          if (!err) {
-            callback(200, {
-              success: true,
-              message: "User created succesfully!",
+        lib.read("users", userPhone, (err3, userData) => {
+            console.log('helo', userPhone);
+          if (!err3 & userData) {
+            const userObject = JSON.parse(
+              JSON.stringify(utilities.parseJSON(userData))
+            );
+
+            tokenHandler._tokens.verify(token, userPhone, (isVerified) => {
+              if (isVerified) {
+                const userChecks =
+                  typeof userObject.checks === "object" &&
+                  userObject.checks instanceof Array
+                    ? userObject.checks
+                    : [];
+
+                if (userChecks.length <= usedEnvironment.maxChecks) {
+                  const checkId = utilities.randomTokenGenerator(20);
+                  const checkObject = {
+                    id: checkId,
+                    protocol,
+                    userPhone,
+                    url,
+                    successCode,
+                    method,
+                    timeoutSeconds
+                  };
+
+                  lib.create('checks', checkId, (err) => {
+                    if(!err) {
+                        userObject.checks = userChecks;
+                        userObject.checks.push = checkId;
+
+                        lib.update('users', userPhone, (err) => {
+                            if(!err) {
+                                callback(200, {
+                                    success: true,
+                                    message: "Successful checks and it's instance in user database."
+                                })
+                            } else {
+                                callback(500, {
+                                    Error: "Error in updating the user data.!"
+                                })
+                            }
+                        })
+                    } else {
+                        callback(500, {
+                            Error: 'Error in creating in checks.'
+                        })
+                    }
+                  })
+                } else {
+                  callback(401, {
+                    Error: "User has already reached max check limit.",
+                  });
+                }
+              } else {
+                callback(403, {
+                  Error: "Authentication Failure. ",
+                });
+              }
             });
           } else {
-            callback(500, {
-              sueccess: false,
-              error: err.message,
+            callback(200, {
+              ErrorFromuserRead: err3
             });
           }
         });
       } else {
-        callback(500, {
-          Error: "Error in server side creating the user.",
+        callback(403, {
+          Error: err,
         });
       }
     });
   } else {
     callback(400, {
-      error: "user input is invalid",
+      error: "Checks input is invalid",
     });
   }
 };
 
 // updateing the user in database
-userHandler._users.put = (requestProperties, callback) => {
+checkHandler._checks.put = (requestProperties, callback) => {
   const firstName =
     typeof requestProperties?.body?.firstName === "string" &&
     requestProperties?.body?.firstName.trim().length > 0
@@ -212,7 +265,7 @@ userHandler._users.put = (requestProperties, callback) => {
 };
 
 //delete method in database with nodejs
-userHandler._users.delete = (requestProperties, callback) => {
+checkHandler._checks.delete = (requestProperties, callback) => {
   const phone =
     typeof requestProperties?.query?.phone === "string" &&
     requestProperties?.query?.phone.trim().length == 11
@@ -255,4 +308,4 @@ userHandler._users.delete = (requestProperties, callback) => {
   }
 };
 
-export default userHandler;
+export default checkHandler;
