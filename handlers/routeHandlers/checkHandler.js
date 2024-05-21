@@ -318,7 +318,42 @@ checkHandler._checks.delete = (requestProperties, callback) => {
           if (verified) {
             lib.delete("checks", id, (err) => {
               if (!err) {
-                callback(200, { success: "Checks deleted successfully" });
+                lib.read("users", phone, (err, userData) => {
+                  if (!err && userData) {
+                    const user = JSON.parse(
+                      JSON.stringify(utilities.parseJSON(userData))
+                    );
+                    let userChecks =
+                      typeof user.checks === "object" &&
+                      user.checks instanceof Array
+                        ? user.checks
+                        : [];
+
+                        let checkPosition = userChecks.indexOf(id);
+                        if(checkPosition > -1) {
+                          userChecks.splice(checkPosition, 1);
+                          user.checks = userChecks
+                          lib.update('users', phone, user, (err) => {
+                            if(!err) {
+                              callback(200, {
+                                success: true,
+                                message: 'Checks data delted and instance in user data also deleted for the checks.'
+                              })
+                            } else {
+                              callback(400, {
+                                Error: "Server side error in deleting the checks data !!!"
+                              })
+                            }
+                          } )
+                        } else {
+                          callback(400, err)
+                        }
+                  } else {
+                    callback(400, {
+                      Error: err,
+                    });
+                  }
+                });
               } else {
                 callback(400, { Error: "checks couldn't delete final" });
               }
