@@ -51,8 +51,11 @@ checkHandler._checks.post = (requestProperties, callback) => {
       ? requestProperties?.body?.successCode
       : false;
 
-  const token = requestProperties.headerObject.token;
   if (protocol && method && successCode && url && timeoutSeconds) {
+    let token =
+      typeof requestProperties.headerObject.token === "string"
+        ? requestProperties.headerObject.token
+        : null;
     lib.read("tokens", token, (err, tokenData) => {
       if (!err && tokenData) {
         const userPhone = utilities.parseJSON(tokenData).phone;
@@ -183,84 +186,109 @@ checkHandler._checks.get = (requestProperties, callback) => {
 
 // updateing the user in database
 checkHandler._checks.put = (requestProperties, callback) => {
-  const firstName =
-    typeof requestProperties?.body?.firstName === "string" &&
-    requestProperties?.body?.firstName.trim().length > 0
-      ? requestProperties?.body?.firstName
+  const protocol =
+    typeof requestProperties?.body?.protocol === "string" &&
+    ["http", "https"].indexOf(requestProperties.body.protocol) > -1
+      ? requestProperties?.body?.protocol
       : null;
 
-  const lastName =
-    typeof requestProperties?.body?.lastName === "string" &&
-    requestProperties?.body?.lastName.trim().length > 0
-      ? requestProperties?.body?.lastName
+  const method =
+    typeof requestProperties?.body?.method === "string" &&
+    ["GET", "POST", "PUT", "DELETE"].indexOf(requestProperties.body.method) > -1
+      ? requestProperties?.body?.method
       : null;
 
-  const phone =
-    typeof requestProperties?.body?.phone === "string" &&
-    requestProperties?.body?.phone.trim().length == 11
-      ? requestProperties?.body?.phone
+  const timeoutSeconds =
+    typeof requestProperties?.body?.timeoutSeconds === "number" &&
+    requestProperties?.body?.timeoutSeconds % 1 === 0 &&
+    requestProperties?.body?.timeoutSeconds >= 1 &&
+    requestProperties?.body?.timeoutSeconds <= 5
+      ? requestProperties?.body?.timeoutSeconds
       : null;
 
-  const password =
-    typeof requestProperties?.body?.password === "string" &&
-    requestProperties?.body?.password.trim().length > 0
-      ? requestProperties?.body?.password
+  const url =
+    typeof requestProperties?.body?.url === "string" &&
+    requestProperties?.body?.url.trim().length > 0
+      ? requestProperties?.body?.url
       : null;
 
-  if (phone) {
-    if (firstName || lastName || password) {
-      let token =
-        typeof requestProperties.headerObject.token === "string"
-          ? requestProperties.headerObject.token
-          : null;
+  const successCode =
+    typeof requestProperties?.body.successCode === "object" &&
+    requestProperties?.body?.successCode instanceof Array
+      ? requestProperties?.body?.successCode
+      : false;
 
-      tokenHandler._tokens.verify(token, phone, (verified) => {
-        if (verified) {
-          lib.read("users", phone, (err, uData) => {
-            if (!err && uData) {
-              const user = JSON.parse(
-                JSON.stringify(utilities.parseJSON(uData))
-              );
-              if (firstName) {
-                user.firstName = firstName;
+  const id =
+    typeof requestProperties?.body?.id === "string" &&
+    requestProperties?.body?.id.trim().length == 20
+      ? requestProperties?.body?.id
+      : null;
+
+  if (id) {
+    lib.read("checks", id, (err, checkData) => {
+      if (!err && checkData) {
+        const checkObject = JSON.parse(
+          JSON.stringify(utilities.parseJSON(checkData))
+        );
+        const phone = checkObject.userPhone;
+
+        if (protocol || method || successCode || url || timeoutSeconds) {
+          let token =
+            typeof requestProperties.headerObject.token === "string"
+              ? requestProperties.headerObject.token
+              : null;
+
+          tokenHandler._tokens.verify(token, phone, (validToken) => {
+            if (validToken) {
+              if (protocol) {
+                checkObject.protocol = protocol;
               }
 
-              if (lastName) {
-                user.lastName = lastName;
+              if (successCode) {
+                checkObject.successCode = successCode;
               }
 
-              if (password) {
-                user.password = utilities.hash(password);
+              if (url) {
+                checkObject.url = url;
               }
 
-              lib.update("users", phone, user, (err) => {
+              if (method) {
+                checkObject.method = method;
+              }
+
+              if (timeoutSeconds) {
+                checkObject.timeoutSeconds = timeoutSeconds;
+              }
+
+              lib.update("checks", id, checkObject, (err) => {
                 if (!err) {
                   callback(200, {
                     success: true,
-                    message: "User updated succesfully",
+                    data: checkObject,
+                    message: "Check updated succesfully",
                   });
                 } else {
-                  callback(400, { Error: "Couldn't updated the user finish." });
+                  callback(400, {
+                    Error: "Couldn't updated the Check finish.",
+                  });
                 }
               });
             } else {
               callback(400, {
-                Error: "Invalid user. User isnot available in database!",
+                Error: "Authentication failed!!!",
               });
             }
           });
         } else {
-          callback(400, {
-            Error: "Authentication failed!!!",
-          });
+          callback(400, { Error: "No data to update" });
         }
-      });
-    } else {
-      callback(400, { Error: "No data to update" });
-    }
+      } else {
+        callback(403, { Error: "Couldn't read the check data" });
+      }
+    });
   } else {
     callback(400, {
-      Error: "Error in invalid identifier with the user phone number!",
+      Error: "Error in invalid identifier with the CHECK ID!",
     });
   }
 };
